@@ -5,7 +5,7 @@ import plotly.express as px
 from datetime import datetime
 from collections import defaultdict, Counter
 
-st.set_page_config(page_title="Аналіз журналів автентифікації", page_icon="🔒", layout="wide")
+st.set_page_config(page_title="Auth Log Analyzer", page_icon="🔒", layout="wide")
 st.title("🔒 Аналіз журналів автентифікації")
 st.markdown("Завантажте JSON-файл із журналами автентифікації для виявлення підозрілої активності.")
 
@@ -31,7 +31,13 @@ def detect_bruteforce(data):
             failed_counter[key] += 1
     for (user, ip), count in failed_counter.items():
         if count >= 5:
-            alerts.append({"Користувач": user, "IP-адреса": ip, "Тип загрози": "Brute-force", "Ризик": 90, "Опис": f"{count} невдалих спроб входу з однієї IP-адреси"})
+            alerts.append({
+                "Користувач": user,
+                "IP-адреса": ip,
+                "Тип загрози": "Brute-force",
+                "Ризик": 90,
+                "Опис": "{} невдалих спроб входу з однієї IP-адреси".format(count)
+            })
     return alerts
 
 def detect_night_logins(data):
@@ -40,7 +46,13 @@ def detect_night_logins(data):
         if log["status"] == "success":
             t = datetime.strptime(log["timestamp"], "%Y-%m-%d %H:%M:%S")
             if 0 <= t.hour <= 6:
-                alerts.append({"Користувач": log["username"], "IP-адреса": log["ip"], "Тип загрози": "Нічний вхід", "Ризик": 50, "Опис": "Успішний вхід у нетиповий нічний час (00:00–06:00)"})
+                alerts.append({
+                    "Користувач": log["username"],
+                    "IP-адреса": log["ip"],
+                    "Тип загрози": "Нічний вхід",
+                    "Ризик": 50,
+                    "Опис": "Успішний вхід у нетиповий нічний час (00:00–06:00)"
+                })
     return alerts
 
 def detect_multiple_ips(data):
@@ -51,7 +63,13 @@ def detect_multiple_ips(data):
             user_ips[log["username"]].add(log["ip"])
     for user, ips in user_ips.items():
         if len(ips) >= 4:
-            alerts.append({"Користувач": user, "IP-адреса": ", ".join(sorted(ips)), "Тип загрози": "Різні IP-адреси", "Ризик": 70, "Опис": f"Користувач входив із {len(ips)} різних IP-адрес"})
+            alerts.append({
+                "Користувач": user,
+                "IP-адреса": ", ".join(sorted(ips)),
+                "Тип загрози": "Різні IP-адреси",
+                "Ризик": 70,
+                "Опис": "Користувач входив із {} різних IP-адрес".format(len(ips))
+            })
     return alerts
 
 def detect_success_after_failures(data):
@@ -67,7 +85,13 @@ def detect_success_after_failures(data):
                 failed_count += 1
             elif log["status"] == "success":
                 if failed_count >= 3:
-                    alerts.append({"Користувач": user, "IP-адреса": log["ip"], "Тип загрози": "Успіх після помилок", "Ризик": 85, "Опис": f"Успішний вхід після {failed_count} невдалих спроб"})
+                    alerts.append({
+                        "Користувач": user,
+                        "IP-адреса": log["ip"],
+                        "Тип загрози": "Успіх після помилок",
+                        "Ризик": 85,
+                        "Опис": "Успішний вхід після {} невдалих спроб".format(failed_count)
+                    })
                 failed_count = 0
     return alerts
 
@@ -75,13 +99,13 @@ if uploaded_file is not None:
     try:
         data = json.load(uploaded_file)
         validate_data(data)
-        st.success(f"Завантажено {len(data)} записів журналу.")
+        st.success("Завантажено {} записів журналу.".format(len(data)))
         alerts = []
         alerts += detect_bruteforce(data)
         alerts += detect_night_logins(data)
         alerts += detect_multiple_ips(data)
         alerts += detect_success_after_failures(data)
-        st.subheader(f"Виявлено підозрілих подій: {len(alerts)}")
+        st.subheader("Виявлено підозрілих подій: {}".format(len(alerts)))
         if alerts:
             df = pd.DataFrame(alerts)
             st.dataframe(df, use_container_width=True)
@@ -106,6 +130,6 @@ if uploaded_file is not None:
         else:
             st.info("Підозрілої активності не виявлено.")
     except Exception as e:
-        st.error(f"Помилка: {e}")
+        st.error("Помилка: {}".format(e))
 else:
     st.info("Завантажте JSON-файл для початку аналізу.")
